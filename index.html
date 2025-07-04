@@ -116,22 +116,7 @@
         </div>
     </div>
 
-    <script type="module">
-        // Importa le funzioni necessarie da Firebase SDK
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-        // --- CONFIGURAZIONE FIREBASE ---
-        // Le variabili __firebase_config e __app_id sono fornite dall'ambiente di esecuzione.
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-time-tracker';
-
-        // Inizializzazione di Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
+    <script>
         // --- VARIABILI DI STATO E UI ---
         const welcomeScreen = document.getElementById('welcome-screen');
         const timingScreen = document.getElementById('timing-screen');
@@ -146,139 +131,47 @@
         const emailInput = document.getElementById('email');
         const emailConfirmation = document.getElementById('email-confirmation');
 
-        let userId = null;
+        let sessionStartTime = null;
         let sessionTimerInterval = null;
 
         // --- FUNZIONI PRINCIPALI ---
 
-        // Funzione per gestire l'autenticazione e l'inizializzazione dell'app
-        async function initializeAppLogic() {
-            // 1. Imposta il listener per i cambiamenti di stato dell'autenticazione
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    // L'utente è autenticato
-                    userId = user.uid;
-                    console.log("Utente autenticato con UID:", userId);
-                    // Ora che abbiamo un utente, controlliamo se ha una sessione attiva
-                    await checkForActiveSession();
-                } else {
-                    // L'utente non è autenticato
-                    userId = null;
-                    console.log("Nessun utente autenticato.");
-                    // Mostra la schermata di benvenuto perché senza utente non può esserci sessione
-                    enterWelcomeState();
-                }
-            });
-
-            // 2. Esegui il tentativo di login
-            try {
-                // Controlla se è fornito un token di autenticazione personalizzato dall'ambiente
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    console.log("Trovato token di autenticazione personalizzato. Eseguo l'accesso...");
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    // Altrimenti, esegui un accesso anonimo
-                    console.log("Nessun token personalizzato. Eseguo un accesso anonimo...");
-                    await signInAnonymously(auth);
-                }
-                console.log("Processo di autenticazione completato con successo.");
-            } catch (error) {
-                console.error("Errore critico durante l'autenticazione:", error);
-                showError("Errore di autenticazione. Impossibile usare l'app.");
-            }
-        }
-
-        // Controlla se esiste una sessione attiva nel database
-        async function checkForActiveSession() {
-            if (!userId) return;
-
-            const sessionRef = doc(db, "artifacts", appId, "public/data/sessions", userId);
-            const docSnap = await getDoc(sessionRef);
-
-            if (docSnap.exists() && !docSnap.data().endTime) {
-                // Sessione attiva trovata
-                const sessionData = docSnap.data();
-                console.log("Trovata sessione attiva:", sessionData);
-                enterTimingState(sessionData.startTime.toDate());
-            } else {
-                // Nessuna sessione attiva
-                console.log("Nessuna sessione attiva trovata.");
-                enterWelcomeState();
-            }
+        // Funzione per inizializzare l'app (senza Firebase)
+        function initializeAppLogic() {
+            enterWelcomeState();
         }
 
         // Funzione per avviare una nuova sessione
-        async function handleStart() {
-            if (!userId) {
-                showError("Autenticazione in corso, riprova tra un momento.");
-                return;
-            }
+        function handleStart() {
+            sessionStartTime = new Date();
+            enterTimingState(sessionStartTime);
 
             const userEmail = emailInput.value.trim();
-            const sessionData = {
-                startTime: serverTimestamp(),
-                endTime: null,
-                email: userEmail,
-                appId: appId
-            };
-
-            try {
-                const sessionRef = doc(db, "artifacts", appId, "public/data/sessions", userId);
-                await setDoc(sessionRef, sessionData);
-                console.log("Sessione avviata e salvata in Firestore con ID:", userId);
-                
-                // Passiamo la data corrente perché serverTimestamp() non è immediatamente disponibile lato client
-                enterTimingState(new Date());
-
-                // Simula l'invio di un'email di benvenuto (in un'app reale, questo sarebbe gestito da un backend)
-                if(userEmail) {
-                    console.log(`(Simulazione) Inviata email di inizio sessione a ${userEmail}`);
-                }
-
-            } catch (error) {
-                console.error("Errore nell'avvio della sessione:", error);
-                showError("Impossibile avviare la sessione. Controlla la connessione e riprova.");
+            if(userEmail) {
+                console.log(`(Simulazione) Inviata email di inizio sessione a ${userEmail}`);
             }
         }
 
         // Funzione per terminare la sessione corrente
-        async function handleStop() {
-            if (!userId) return;
+        function handleStop() {
+            if (!sessionStartTime) return;
 
-            const sessionRef = doc(db, "artifacts", appId, "public/data/sessions", userId);
-            
-            try {
-                await updateDoc(sessionRef, {
-                    endTime: serverTimestamp()
-                });
+            const endTime = new Date();
+            const durationMs = endTime - sessionStartTime;
 
-                const updatedDocSnap = await getDoc(sessionRef);
-                const finalData = updatedDocSnap.data();
-                
-                const startTime = finalData.startTime.toDate();
-                const endTime = finalData.endTime.toDate(); // Ora endTime è disponibile
-                const durationMs = endTime - startTime;
+            console.log("Sessione terminata. Durata:", durationMs, "ms");
 
-                console.log("Sessione terminata. Durata:", durationMs, "ms");
+            enterFinishedState(durationMs, emailInput.value.trim());
 
-                enterFinishedState(durationMs, finalData.email);
-
-                // Simula l'invio dell'email di riepilogo
-                if(finalData.email) {
-                    console.log(`(Simulazione) Inviata email di riepilogo a ${finalData.email} con durata ${formatDuration(durationMs)}`);
-                }
-
-            } catch (error) {
-                console.error("Errore nel terminare la sessione:", error);
-                showError("Impossibile terminare la sessione. Riprova.");
+            // Simula l'invio dell'email di riepilogo
+            if(emailInput.value.trim()) {
+                console.log(`(Simulazione) Inviata email di riepilogo a ${emailInput.value.trim()} con durata ${formatDuration(durationMs)}`);
             }
         }
         
-        // Funzione per mostrare errori senza usare alert()
+        // Funzione per mostrare errori (semplificata senza Firebase)
         function showError(message) {
-            // In una vera app, questo creerebbe un modal o un toast notification
             console.error("ERRORE APP:", message);
-            // Per questo prototipo, aggiungiamo un messaggio temporaneo in cima alla pagina
             const errorDiv = document.createElement('div');
             errorDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #ef4444; color: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100;';
             errorDiv.textContent = message;
@@ -328,6 +221,7 @@
             switchScreen(welcomeScreen);
             clearInterval(sessionTimerInterval);
             emailInput.value = ''; // Pulisce l'input email
+            timerDisplay.textContent = '00:00:00'; // Reset timer display
         }
 
         function enterTimingState(startTime) {
