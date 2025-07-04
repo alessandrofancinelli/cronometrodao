@@ -78,13 +78,14 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Benvenuto/a!</h1>
             <p class="text-gray-600 mb-8">Scansiona il QR Code per avviare il timer.</p>
             <div id="qr-reader" class="w-full h-64 mb-6 bg-gray-200 rounded-lg overflow-hidden"></div>
+            <p id="scanned-session-id" class="text-lg font-semibold text-gray-700 mb-4 hidden">Sessione ID: <span id="session-id-display" class="text-indigo-600"></span></p>
             <div class="mb-6 text-left">
                 <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Indirizzo Email (Opzionale)</label>
                 <input type="email" id="email" class="w-full px-4 py-3 bg-white/50 border-2 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" placeholder="La tua email per il riepilogo">
             </div>
             <button id="start-btn" class="btn btn-primary w-full hidden">
                 <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                Inizia
+                Inizia Sessione
             </button>
             <p class="text-xs text-gray-400 mt-6">Scansiona il QR Code di ingresso per avviare il timer.</p>
         </div>
@@ -133,6 +134,9 @@
         const finalTimeDisplay = document.getElementById('final-time');
         const emailInput = document.getElementById('email');
         const emailConfirmation = document.getElementById('email-confirmation');
+        const scannedSessionIdDisplay = document.getElementById('session-id-display');
+        const scannedSessionIdContainer = document.getElementById('scanned-session-id');
+        const qrReaderDiv = document.getElementById('qr-reader');
 
         let sessionStartTime = null;
         let sessionTimerInterval = null;
@@ -149,14 +153,18 @@
             enterWelcomeState();
         }
 
-        async function handleStart(sessionIdFromQR) {
+        // This function is now called by the "Inizia Sessione" button
+        async function startSessionWithData() {
+            if (!currentSessionId) {
+                showError('Scansiona prima un QR Code per avviare la sessione.');
+                return;
+            }
             const userEmail = emailInput.value.trim();
-            currentSessionId = sessionIdFromQR; // Store the scanned QR code data
 
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Required for Apps Script web app calls
+                    mode: 'no-cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -167,11 +175,8 @@
                     }),
                 });
 
-                // Due to 'no-cors', we can't directly read the response.
-                // Assume success if no network error.
-                // In a real scenario, you might use a proxy or check for a specific redirect.
                 console.log("Start session request sent. Check Google Sheet for status.");
-                sessionStartTime = new Date(); // Use local time for display, server time for record
+                sessionStartTime = new Date();
                 enterTimingState(sessionStartTime);
                 showSuccess(`Sessione ${currentSessionId} avviata!`);
 
@@ -200,10 +205,9 @@
                     }),
                 });
 
-                // Due to 'no-cors', we can't directly read the response.
                 console.log("Stop session request sent. Check Google Sheet for status.");
                 const endTime = new Date();
-                const durationMs = endTime - sessionStartTime; // Calculate duration based on local start time
+                const durationMs = endTime - sessionStartTime;
                 enterFinishedState(durationMs, emailInput.value.trim());
                 showSuccess(`Sessione ${currentSessionId} terminata! Riepilogo inviato via email.`);
 
@@ -275,23 +279,35 @@
             emailInput.value = '';
             timerDisplay.textContent = '00:00:00';
             currentSessionId = null; // Clear session ID
+            scannedSessionIdContainer.classList.add('hidden'); // Hide scanned ID display
+            startBtn.classList.add('hidden'); // Hide start button initially
+            qrReaderDiv.classList.remove('hidden'); // Show QR reader
 
             // Initialize QR scanner for start
             if (html5QrCodeScanner) {
                 html5QrCodeScanner.stop().then(() => {
                     console.log("QR scanner stopped.");
-                    startQrScanner('qr-reader', handleStart);
+                    startQrScanner('qr-reader', onQrCodeScannedForStart);
                 }).catch(err => {
                     console.error("Error stopping QR scanner:", err);
-                    startQrScanner('qr-reader', handleStart); // Try to restart anyway
+                    startQrScanner('qr-reader', onQrCodeScannedForStart); // Try to restart anyway
                 });
             } else {
-                startQrScanner('qr-reader', handleStart);
+                startQrScanner('qr-reader', onQrCodeScannedForStart);
             }
 
             if (html5QrCodeScannerStop) {
                 html5QrCodeScannerStop.stop().catch(err => console.error("Error stopping stop QR scanner:", err));
             }
+        }
+
+        function onQrCodeScannedForStart(decodedText) {
+            currentSessionId = decodedText;
+            scannedSessionIdDisplay.textContent = currentSessionId;
+            scannedSessionIdContainer.classList.remove('hidden'); // Show scanned ID
+            qrReaderDiv.classList.add('hidden'); // Hide QR reader
+            startBtn.classList.remove('hidden'); // Show start button
+            showSuccess(`QR Code scansionato: ${currentSessionId}. Inserisci l'email e clicca "Inizia Sessione".`);
         }
 
         function enterTimingState(startTime) {
@@ -378,7 +394,7 @@
         }
 
         // --- EVENT LISTENERS ---
-        // startBtn.addEventListener('click', handleStart); // No longer needed, QR scan triggers start
+        startBtn.addEventListener('click', startSessionWithData); // Now calls the new function
         // stopBtn.addEventListener('click', handleStop); // No longer needed, QR scan triggers stop
         resetBtn.addEventListener('click', enterWelcomeState);
 
