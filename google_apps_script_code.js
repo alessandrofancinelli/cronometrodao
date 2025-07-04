@@ -49,18 +49,21 @@ function doPost(e) {
 function handleStartSession(sheet, data) {
   const sessionId = data.sessionId;
   const startTime = new Date(); // Server-side timestamp for accuracy
+  const nome = data.nome || '';
+  const cognome = data.cognome || '';
   const userEmail = data.userEmail || '';
 
   // Check if session already exists (optional, depends on desired behavior)
   const range = sheet.getDataRange();
   const values = range.getValues();
   for (let i = 1; i < values.length; i++) { // Start from 1 to skip header row
-    if (values[i][0] === sessionId && values[i][2] === '') { // SessionID matches and StopTime is empty
+    if (values[i][0] === sessionId && values[i][4] === '') { // SessionID matches and StopTime is empty (now column E)
       return createJsonResponse({ status: 'error', message: `Session ${sessionId} already active.` }, 409);
     }
   }
 
-  sheet.appendRow([sessionId, startTime, '', '', userEmail]); // SessionID, StartTime, StopTime, Duration, UserEmail
+  // Append new row: SessionID, Nome, Cognome, StartTime, StopTime, Duration, UserEmail
+  sheet.appendRow([sessionId, nome, cognome, startTime, '', '', userEmail]);
   return createJsonResponse({ status: 'success', message: 'Session started', sessionId: sessionId, startTime: startTime.toISOString() });
 }
 
@@ -70,16 +73,20 @@ function handleStopSession(sheet, data) {
   let rowToUpdate = -1;
   let startTime = null;
   let userEmail = '';
+  let nome = '';
+  let cognome = '';
 
   const range = sheet.getDataRange();
   const values = range.getValues();
 
   // Find the row with the matching SessionID and empty StopTime
   for (let i = 1; i < values.length; i++) { // Start from 1 to skip header row
-    if (values[i][0] === sessionId && values[i][2] === '') { // SessionID matches and StopTime is empty
+    if (values[i][0] === sessionId && values[i][4] === '') { // SessionID matches and StopTime is empty (now column E)
       rowToUpdate = i + 1; // Google Sheets row index is 1-based
-      startTime = new Date(values[i][1]);
-      userEmail = values[i][4]; // Get user email from the sheet
+      nome = values[i][1]; // Get nome from the sheet
+      cognome = values[i][2]; // Get cognome from the sheet
+      startTime = new Date(values[i][3]); // Get StartTime from the sheet (now column D)
+      userEmail = values[i][6]; // Get user email from the sheet (now column G)
       break;
     }
   }
@@ -92,12 +99,12 @@ function handleStopSession(sheet, data) {
   const durationFormatted = formatDuration(durationMs);
 
   // Update the row: StopTime and Duration
-  sheet.getRange(rowToUpdate, 3).setValue(stopTime); // Column C (3rd column) for StopTime
-  sheet.getRange(rowToUpdate, 4).setValue(durationFormatted); // Column D (4th column) for Duration
+  sheet.getRange(rowToUpdate, 5).setValue(stopTime); // Column E (5th column) for StopTime
+  sheet.getRange(rowToUpdate, 6).setValue(durationFormatted); // Column F (6th column) for Duration
 
   // Send summary email
   if (userEmail) {
-    sendSummaryEmail(userEmail, sessionId, startTime, stopTime, durationFormatted);
+    sendSummaryEmail(userEmail, sessionId, nome, cognome, startTime, stopTime, durationFormatted);
   }
 
   return createJsonResponse({ status: 'success', message: 'Session stopped', sessionId: sessionId, stopTime: stopTime.toISOString(), duration: durationFormatted });
@@ -112,18 +119,18 @@ function formatDuration(milliseconds) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function sendSummaryEmail(recipient, sessionId, startTime, stopTime, duration) {
-  const subject = `Stopwatch Session Summary: ${sessionId}`;
+function sendSummaryEmail(recipient, sessionId, nome, cognome, startTime, stopTime, duration) {
+  const subject = `Riepilogo Sessione Cronometro: ${sessionId}`;
   const body = `
-    Dear User,
+    Gentile ${nome} ${cognome},
 
-    Your stopwatch session "${sessionId}" has ended.
+    La tua sessione di cronometro "${sessionId}" è terminata.
 
-    Start Time: ${startTime.toLocaleString()}
-    Stop Time: ${stopTime.toLocaleString()}
-    Duration: ${duration}
+    Ora di Inizio: ${startTime.toLocaleString()}
+    Ora di Fine: ${stopTime.toLocaleString()}
+    Durata: ${duration}
 
-    Thank you for using our stopwatch application!
+    Grazie per aver utilizzato la nostra applicazione cronometro!
   `;
 
   try {
@@ -144,7 +151,7 @@ function createJsonResponse(data, status = 200) {
 function setupSheetHeaders() {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
   if (sheet) {
-    const headers = ['SessionID', 'StartTime', 'StopTime', 'Duration', 'UserEmail'];
+    const headers = ['SessionID', 'Nome', 'Cognome', 'StartTime', 'StopTime', 'Duration', 'UserEmail'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
 }
