@@ -177,7 +177,7 @@
             currentUserSurname = activeSession.cognome;
             currentUserEmail = activeSession.userEmail;
 
-            showSuccess(`Rilevata sessione attiva: ${currentSessionId}. Terminazione automatica...`);
+            // Removed showSuccess message for automatic session termination
             await handleStop(); // Call handleStop without QR data, it will use currentSessionId
         }
 
@@ -212,7 +212,7 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -225,9 +225,16 @@
                     }),
                 });
 
-                console.log("Start session request sent. Check Google Sheet for status.");
-                enterTimingState(sessionStartTime);
-                showSuccess(`Sessione ${currentSessionId} avviata per ${currentUserName} ${currentUserSurname}!`);
+                const result = await response.json(); // Parse JSON response
+                if (result.status === 'success') {
+                    console.log("Start session request sent. Check Google Sheet for status.");
+                    enterTimingState(sessionStartTime);
+                    // Removed showSuccess message for starting a session
+                } else {
+                    console.error('Errore dal server:', result.message);
+                    showError(`Errore: ${result.message}`);
+                    localStorage.removeItem('activeSession'); // Clear session if start fails
+                }
 
             } catch (error) {
                 console.error('Errore nell\'avvio della sessione:', error);
@@ -246,7 +253,7 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -256,12 +263,18 @@
                     }),
                 });
 
-                console.log("Stop session request sent. Check Google Sheet for status.");
-                const endTime = new Date();
-                const durationMs = endTime - sessionStartTime;
-                enterFinishedState(durationMs, currentUserEmail);
-                showSuccess(`Sessione ${currentSessionId} terminata! Riepilogo inviato via email.`);
-                localStorage.removeItem('activeSession'); // Clear session from localStorage
+                const result = await response.json(); // Parse JSON response
+                if (result.status === 'success') {
+                    console.log("Stop session request sent. Check Google Sheet for status.");
+                    const endTime = new Date();
+                    const durationMs = endTime - sessionStartTime;
+                    enterFinishedState(durationMs, currentUserEmail);
+                    showSuccess(`Sessione ${currentSessionId} terminata! Riepilogo inviato via email.`);
+                    localStorage.removeItem('activeSession'); // Clear session from localStorage
+                } else {
+                    console.error('Errore dal server:', result.message);
+                    showError(`Errore: ${result.message}`);
+                }
 
             } catch (error) {
                 console.error('Errore nella terminazione della sessione:', error);

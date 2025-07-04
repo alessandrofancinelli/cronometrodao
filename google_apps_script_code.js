@@ -16,8 +16,8 @@
  * 6. Ensure the script has permissions to access Google Sheets and send emails.
  */
 
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your Google Sheet ID
-const SHEET_NAME = 'Sessions'; // Replace with your sheet name, e.g., 'Sheet1'
+const SPREADSHEET_ID = '1Fjn1mvRhssvhKK7ivM-lWGJdcLX16p4EEqvE6NoCmD0'; // Replace with your Google Sheet ID
+const SHEET_NAME = 'Foglio1'; // Replace with your sheet name, e.g., 'Sheet1'
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
@@ -141,6 +141,7 @@ function sendSummaryEmail(recipient, sessionId, nome, cognome, startTime, stopTi
   }
 }
 
+
 function createJsonResponse(data, status = 200) {
   // setStatusCode is not available on TextOutput, only HtmlOutput.
   // For JSON responses, the default status is 200 OK.
@@ -155,4 +156,12 @@ function setupSheetHeaders() {
     const headers = ['SessionID', 'Nome', 'Cognome', 'StartTime', 'StopTime', 'Duration', 'UserEmail'];
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
+}
+
+/**
+ * Runs when the spreadsheet is opened.
+ * This function is used to ensure the sheet headers are set up.
+ */
+function onOpen() {
+  setupSheetHeaders();
 }
