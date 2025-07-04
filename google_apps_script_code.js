@@ -142,9 +142,10 @@ function sendSummaryEmail(recipient, sessionId, nome, cognome, startTime, stopTi
 }
 
 function createJsonResponse(data, status = 200) {
+  // setStatusCode is not available on TextOutput, only HtmlOutput.
+  // For JSON responses, the default status is 200 OK.
   return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setStatusCode(status);
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Helper function to create the initial sheet headers if needed
