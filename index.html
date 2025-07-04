@@ -162,7 +162,8 @@
         function initializeAppLogic() {
             const activeSession = JSON.parse(localStorage.getItem('activeSession'));
             if (activeSession && activeSession.sessionId && activeSession.startTime) {
-                // Session found in localStorage, attempt to stop it
+                // Session found in localStorage, immediately show finished screen and attempt to stop it
+                enterFinishedState(0, activeSession.userEmail, true); // Show finished screen with placeholder, indicate it's an auto-stop
                 resumeAndStopSession(activeSession);
             } else {
                 // No active session, start fresh
@@ -177,8 +178,8 @@
             currentUserSurname = activeSession.cognome;
             currentUserEmail = activeSession.userEmail;
 
-            showSuccess(`Rilevata sessione attiva: ${currentSessionId}. Terminazione automatica...`);
-            await handleStop(); // Call handleStop without QR data, it will use currentSessionId
+            // showSuccess(`Rilevata sessione attiva: ${currentSessionId}. Terminazione automatica...`); // Removed success message
+            await handleStop(); // Call handleStop, it will use currentSessionId
         }
 
         // This function is now called by the "Avvia Timer" button
@@ -225,9 +226,9 @@
                     }),
                 });
 
+                enterTimingState(sessionStartTime); // Move this line up for faster UI update
                 console.log("Start session request sent. Check Google Sheet for status.");
-                enterTimingState(sessionStartTime);
-                showSuccess(`Sessione ${currentSessionId} avviata per ${currentUserName} ${currentUserSurname}!`);
+                // showSuccess(`Sessione ${currentSessionId} avviata per ${currentUserName} ${currentUserSurname}!`); // Removed success message
 
             } catch (error) {
                 console.error('Errore nell\'avvio della sessione:', error);
@@ -259,13 +260,17 @@
                 console.log("Stop session request sent. Check Google Sheet for status.");
                 const endTime = new Date();
                 const durationMs = endTime - sessionStartTime;
-                enterFinishedState(durationMs, currentUserEmail);
-                showSuccess(`Sessione ${currentSessionId} terminata! Riepilogo inviato via email.`);
+                finalTimeDisplay.textContent = formatDuration(durationMs); // Update final time after calculation
+                // enterFinishedState(durationMs, currentUserEmail); // This call is now redundant as screen is already set
+                // showSuccess(`Sessione ${currentSessionId} terminata! Riepilogo inviato via email.`); // Removed success message
                 localStorage.removeItem('activeSession'); // Clear session from localStorage
 
             } catch (error) {
                 console.error('Errore nella terminazione della sessione:', error);
                 showError('Impossibile terminare la sessione. Controlla la connessione.');
+                // If stop fails, revert to welcome state or show error on finished screen
+                enterFinishedState(0, currentUserEmail, false); // Show error state or allow retry
+                finalTimeDisplay.textContent = 'Errore nel calcolo del tempo.';
             }
         }
 
@@ -280,15 +285,16 @@
             }, 4000);
         }
 
-        function showSuccess(message) {
-            const successDiv = document.createElement('div');
-            successDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #22c55e; color: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100;';
-            successDiv.textContent = message;
-            document.body.appendChild(successDiv);
-            setTimeout(() => {
-                document.body.removeChild(successDiv);
-            }, 4000);
-        }
+        // Removed showSuccess function as per user request
+        // function showSuccess(message) {
+        //     const successDiv = document.createElement('div');
+        //     successDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #22c55e; color: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100;';
+        //     successDiv.textContent = message;
+        //     document.body.appendChild(successDiv);
+        //     setTimeout(() => {
+        //         document.body.removeChild(successDiv);
+        //     }, 4000);
+        // }
 
         // --- FUNZIONI DI GESTIONE UI ---
 
@@ -344,10 +350,15 @@
             updateTimer(startTime);
         }
 
-        function enterFinishedState(durationMs, email) {
+        function enterFinishedState(durationMs, email, isAutoStop = false) {
             switchScreen(finishedScreen);
             clearInterval(sessionTimerInterval);
-            finalTimeDisplay.textContent = formatDuration(durationMs);
+            if (isAutoStop) {
+                finalTimeDisplay.textContent = 'Calcolo...'; // Placeholder for auto-stop
+            } else {
+                finalTimeDisplay.textContent = formatDuration(durationMs);
+            }
+            
             if (email) {
                 emailConfirmation.textContent = `Un riepilogo è stato inviato a ${email}.`;
                 emailConfirmation.classList.remove('hidden');
