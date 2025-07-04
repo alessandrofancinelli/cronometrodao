@@ -269,7 +269,7 @@
                     const endTime = new Date();
                     const durationMs = endTime - sessionStartTime;
                     enterFinishedState(durationMs, currentUserEmail);
-                    showSuccess(`Sessione ${currentSessionId} terminata! Riepilogo inviato via email.`);
+                    // Removed showSuccess message for stopping a session
                     localStorage.removeItem('activeSession'); // Clear session from localStorage
                 } else {
                     console.error('Errore dal server:', result.message);
