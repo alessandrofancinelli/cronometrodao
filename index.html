@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rilevatore di Tempo Moderno</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .card {
+            /* Stile Glassmorphism per la card */
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .btn {
+            /* Stile moderno per i pulsanti */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            transform: translateY(0);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .btn-primary {
+            background-image: linear-gradient(to right, #4f46e5, #7c3aed);
+            color: white;
+        }
+        .btn-secondary {
+            background-image: linear-gradient(to right, #ef4444, #ec4899);
+            color: white;
+        }
+        .hidden {
+            display: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .timer-text {
+            /* Effetto gradiente per il testo del timer */
+            font-weight: 900;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+            background-image: linear-gradient(to right, #374151, #111827);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 flex items-center justify-center min-h-screen p-4">
+
+    <div id="app-container" class="w-full max-w-md mx-auto text-center">
+
+        <!-- Schermata di Benvenuto (Stato Iniziale) -->
+        <div id="welcome-screen" class="card">
+            <svg class="w-20 h-20 mx-auto mb-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Benvenuto/a!</h1>
+            <p class="text-gray-600 mb-8">Scansiona il QR Code o clicca "Inizia" per avviare il timer.</p>
+            <div class="mb-6 text-left">
+                <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Indirizzo Email (Opzionale)</label>
+                <input type="email" id="email" class="w-full px-4 py-3 bg-white/50 border-2 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" placeholder="La tua email per il riepilogo">
+            </div>
+            <button id="start-btn" class="btn btn-primary w-full">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Inizia
+            </button>
+            <p class="text-xs text-gray-400 mt-6">Questo pulsante simula la scansione del QR Code di ingresso.</p>
+        </div>
+
+        <!-- Schermata di Cronometraggio (Stato Attivo) -->
+        <div id="timing-screen" class="card hidden">
+            <div class="animate-pulse flex justify-center items-center mb-5">
+                 <svg class="w-20 h-20 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Tempo in Corso</h1>
+            <p class="text-gray-600 mb-6">Puoi chiudere la pagina. Scansiona il QR di uscita per terminare.</p>
+            <div id="timer" class="text-6xl mb-8 timer-text">00:00:00</div>
+            <button id="stop-btn" class="btn btn-secondary w-full">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
+                Termina
+            </button>
+            <p class="text-xs text-gray-400 mt-6">Questo pulsante simula la scansione del QR Code di uscita.</p>
+        </div>
+
+        <!-- Schermata Finale (Riepilogo) -->
+        <div id="finished-screen" class="card hidden">
+            <svg class="w-20 h-20 mx-auto mb-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Sessione Completata!</h1>
+            <p class="text-gray-600 mb-6">Grazie per la tua visita. Ecco il tuo riepilogo:</p>
+            <div class="bg-indigo-50/50 p-6 rounded-xl mb-6">
+                <p class="text-lg text-indigo-800 font-semibold">Tempo Totale di Permanenza</p>
+                <div id="final-time" class="text-5xl timer-text"></div>
+            </div>
+            <p id="email-confirmation" class="text-sm text-gray-600 mb-8 hidden"></p>
+            <button id="reset-btn" class="btn btn-primary w-full">Nuova Sessione</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importa le funzioni necessarie da Firebase SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // --- CONFIGURAZIONE FIREBASE ---
+        // Le variabili __firebase_config e __app_id sono fornite dall'ambiente di esecuzione.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-time-tracker';
+
+        // Inizializzazione di Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- VARIABILI DI STATO E UI ---
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const timingScreen = document.getElementById('timing-screen');
+        const finishedScreen = document.getElementById('finished-screen');
+        
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        
+        const timerDisplay = document.getElementById('timer');
+        const finalTimeDisplay = document.getElementById('final-time');
+        const emailInput = document.getElementById('email');
+        const emailConfirmation = document.getElementById('email-confirmation');
+
+        let userId = null;
+        let sessionTimerInterval = null;
+
+        // --- FUNZIONI PRINCIPALI ---
+
+        // Funzione per gestire l'autenticazione e l'inizializzazione dell'app
+        async function initializeAppLogic() {
+            // 1. Imposta il listener per i cambiamenti di stato dell'autenticazione
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    // L'utente è autenticato
+                    userId = user.uid;
+                    console.log("Utente autenticato con UID:", userId);
+                    // Ora che abbiamo un utente, controlliamo se ha una sessione attiva
+                    await checkForActiveSession();
+                } else {
+                    // L'utente non è autenticato
+                    userId = null;
+                    console.log("Nessun utente autenticato.");
+                    // Mostra la schermata di benvenuto perché senza utente non può esserci sessione
+                    enterWelcomeState();
+                }
+            });
+
+            // 2. Esegui il tentativo di login
+            try {
+                // Controlla se è fornito un token di autenticazione personalizzato dall'ambiente
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    console.log("Trovato token di autenticazione personalizzato. Eseguo l'accesso...");
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    // Altrimenti, esegui un accesso anonimo
+                    console.log("Nessun token personalizzato. Eseguo un accesso anonimo...");
+                    await signInAnonymously(auth);
+                }
+                console.log("Processo di autenticazione completato con successo.");
+            } catch (error) {
+                console.error("Errore critico durante l'autenticazione:", error);
+                showError("Errore di autenticazione. Impossibile usare l'app.");
+            }
+        }
+
+        // Controlla se esiste una sessione attiva nel database
+        async function checkForActiveSession() {
+            if (!userId) return;
+
+            const sessionRef = doc(db, "artifacts", appId, "public/data/sessions", userId);
+            const docSnap = await getDoc(sessionRef);
+
+            if (docSnap.exists() && !docSnap.data().endTime) {
+                // Sessione attiva trovata
+                const sessionData = docSnap.data();
+                console.log("Trovata sessione attiva:", sessionData);
+                enterTimingState(sessionData.startTime.toDate());
+            } else {
+                // Nessuna sessione attiva
+                console.log("Nessuna sessione attiva trovata.");
+                enterWelcomeState();
+            }
+        }
+
+        // Funzione per avviare una nuova sessione
+        async function handleStart() {
+            if (!userId) {
+                showError("Autenticazione in corso, riprova tra un momento.");
+                return;
+            }
+
+            const userEmail = emailInput.value.trim();
+            const sessionData = {
+                startTime: serverTimestamp(),
+                endTime: null,
+                email: userEmail,
+                appId: appId
+            };
+
+            try {
+                const sessionRef = doc(db, "artifacts", appId, "public/data/sessions", userId);
+                await setDoc(sessionRef, sessionData);
+                console.log("Sessione avviata e salvata in Firestore con ID:", userId);
+                
+                // Passiamo la data corrente perché serverTimestamp() non è immediatamente disponibile lato client
+                enterTimingState(new Date());
+
+                // Simula l'invio di un'email di benvenuto (in un'app reale, questo sarebbe gestito da un backend)
+                if(userEmail) {
+                    console.log(`(Simulazione) Inviata email di inizio sessione a ${userEmail}`);
+                }
+
+            } catch (error) {
+                console.error("Errore nell'avvio della sessione:", error);
+                showError("Impossibile avviare la sessione. Controlla la connessione e riprova.");
+            }
+        }
+
+        // Funzione per terminare la sessione corrente
+        async function handleStop() {
+            if (!userId) return;
+
+            const sessionRef = doc(db, "artifacts", appId, "public/data/sessions", userId);
+            
+            try {
+                await updateDoc(sessionRef, {
+                    endTime: serverTimestamp()
+                });
+
+                const updatedDocSnap = await getDoc(sessionRef);
+                const finalData = updatedDocSnap.data();
+                
+                const startTime = finalData.startTime.toDate();
+                const endTime = finalData.endTime.toDate(); // Ora endTime è disponibile
+                const durationMs = endTime - startTime;
+
+                console.log("Sessione terminata. Durata:", durationMs, "ms");
+
+                enterFinishedState(durationMs, finalData.email);
+
+                // Simula l'invio dell'email di riepilogo
+                if(finalData.email) {
+                    console.log(`(Simulazione) Inviata email di riepilogo a ${finalData.email} con durata ${formatDuration(durationMs)}`);
+                }
+
+            } catch (error) {
+                console.error("Errore nel terminare la sessione:", error);
+                showError("Impossibile terminare la sessione. Riprova.");
+            }
+        }
+        
+        // Funzione per mostrare errori senza usare alert()
+        function showError(message) {
+            // In una vera app, questo creerebbe un modal o un toast notification
+            console.error("ERRORE APP:", message);
+            // Per questo prototipo, aggiungiamo un messaggio temporaneo in cima alla pagina
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #ef4444; color: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 100;';
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => {
+                document.body.removeChild(errorDiv);
+            }, 4000);
+        }
+
+        // --- FUNZIONI DI GESTIONE UI ---
+
+        function updateTimer(startTime) {
+            clearInterval(sessionTimerInterval);
+            sessionTimerInterval = setInterval(() => {
+                const now = new Date();
+                const elapsedMs = now - startTime;
+                timerDisplay.textContent = formatDuration(elapsedMs);
+            }, 1000);
+        }
+
+        function formatDuration(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            return [hours, minutes, seconds]
+                .map(v => v.toString().padStart(2, '0'))
+                .join(':');
+        }
+
+        function switchScreen(activeScreen) {
+            [welcomeScreen, timingScreen, finishedScreen].forEach(screen => {
+                if (screen === activeScreen) {
+                    screen.classList.remove('hidden');
+                    // Riavvia l'animazione ogni volta che la schermata appare
+                    screen.style.animation = 'none';
+                    screen.offsetHeight; /* trigger reflow */
+                    screen.style.animation = null; 
+                } else {
+                    screen.classList.add('hidden');
+                }
+            });
+        }
+
+        function enterWelcomeState() {
+            switchScreen(welcomeScreen);
+            clearInterval(sessionTimerInterval);
+            emailInput.value = ''; // Pulisce l'input email
+        }
+
+        function enterTimingState(startTime) {
+            switchScreen(timingScreen);
+            updateTimer(startTime);
+        }
+
+        function enterFinishedState(durationMs, email) {
+            switchScreen(finishedScreen);
+            clearInterval(sessionTimerInterval);
+            finalTimeDisplay.textContent = formatDuration(durationMs);
+            if(email) {
+                emailConfirmation.textContent = `Un riepilogo è stato inviato a ${email}.`;
+                emailConfirmation.classList.remove('hidden');
+            } else {
+                emailConfirmation.classList.add('hidden');
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        startBtn.addEventListener('click', handleStart);
+        stopBtn.addEventListener('click', handleStop);
+        resetBtn.addEventListener('click', enterWelcomeState);
+
+        // Avvia l'app
+        initializeAppLogic();
+
+    </script>
+</body>
+</html>
