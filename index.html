@@ -220,7 +220,7 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -259,7 +259,7 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -269,19 +269,26 @@
                     }),
                 });
 
-                console.log("Stop session request sent. Check Google Sheet for status.");
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const responseData = await response.json();
+                console.log("Stop session response:", responseData);
+
                 const endTime = new Date();
                 const durationMs = endTime - sessionStartTime;
                 finalTimeDisplay.textContent = formatDuration(durationMs); // Update final time after calculation
-                // showSuccess(`Sessione ${currentSessionId} terminata! Riepilogo inviato via email.`); // Removed success message
                 localStorage.removeItem('activeSession'); // Clear session from localStorage
+                enterFinishedState(durationMs, currentUserEmail); // Transition to finished state
 
             } catch (error) {
                 console.error('Errore nella terminazione della sessione:', error);
-                showError('Impossibile terminare la sessione. Controlla la connessione.');
+                showError(`Impossibile terminare la sessione: ${error.message}. Controlla la connessione e la configurazione dello script.`);
                 // If stop fails, update the finished screen with an error message
                 finalTimeDisplay.textContent = 'Errore nel calcolo del tempo.';
-                emailConfirmation.textContent = 'Si è verificato un errore durante la terminazione della sessione. Riprova.';
+                emailConfirmation.textContent = `Si è verificato un errore durante la terminazione della sessione: ${error.message}. Riprova.`;
                 emailConfirmation.classList.remove('hidden');
             }
         }
