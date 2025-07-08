@@ -114,18 +114,6 @@
             <p class="text-xs text-gray-400 mt-6">Clicca per terminare la sessione.</p>
         </div>
 
-        <!-- Schermata Finale (Riepilogo) -->
-        <div id="finished-screen" class="card hidden">
-            <svg class="w-20 h-20 mx-auto mb-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Sessione Completata!</h1>
-            <p class="text-gray-600 mb-6">Grazie per la tua visita. Ecco il tuo riepilogo:</p>
-            <div class="bg-indigo-50/50 p-6 rounded-xl mb-6">
-                <p class="text-lg text-indigo-800 font-semibold">Tempo Totale di Permanenza</p>
-                <div id="final-time" class="text-5xl timer-text"></div>
-            </div>
-            <p id="email-confirmation" class="text-sm text-gray-600 mb-8 hidden"></p>
-            <button id="reset-btn" class="btn btn-primary w-full">Nuova Sessione</button>
-        </div>
     </div>
 
     <script>
@@ -164,9 +152,9 @@
         function initializeAppLogic() {
             const activeSession = JSON.parse(localStorage.getItem('activeSession'));
             if (activeSession && activeSession.sessionId && activeSession.startTime) {
-                // Session found in localStorage, immediately show finished screen and attempt to stop it
-                enterFinishedState(0, activeSession.userEmail, true); // Show finished screen with placeholder, indicate it's an auto-stop
-                resumeAndStopSession(activeSession);
+                // Session found in localStorage, immediately redirect to thank_you.html and attempt to stop it
+                window.location.href = 'thank_you.html';
+                resumeAndStopSession(activeSession); // Still call to ensure data is sent
             } else {
                 // No active session, start fresh
                 enterWelcomeState();
@@ -181,7 +169,7 @@
             currentUserEmail = activeSession.userEmail;
 
             // showSuccess(`Rilevata sessione attiva: ${currentSessionId}. Terminazione automatica...`); // Removed success message
-            await handleStop(); // Call handleStop, it will use currentSessionId
+            await handleStop(true); // Call handleStop, indicating it's an auto-stop
         }
 
         // This function is now called by the "Avvia Timer" button
@@ -220,7 +208,7 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors',
+                    mode: 'no-cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -250,7 +238,7 @@
         }
 
         // This function is now called by the "Termina Sessione" button or resumeAndStopSession
-        async function handleStop() {
+        async function handleStop(isAutoStopCall = false) {
             if (!currentSessionId) {
                 showError('Nessuna sessione attiva da terminare.');
                 return;
@@ -259,7 +247,7 @@
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors',
+                    mode: 'no-cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -269,26 +257,22 @@
                     }),
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-                }
-
-                const responseData = await response.json();
-                console.log("Stop session response:", responseData);
-
+                console.log("Stop session request sent. Check Google Sheet for status.");
                 const endTime = new Date();
                 const durationMs = endTime - sessionStartTime;
                 finalTimeDisplay.textContent = formatDuration(durationMs); // Update final time after calculation
                 localStorage.removeItem('activeSession'); // Clear session from localStorage
-                enterFinishedState(durationMs, currentUserEmail); // Transition to finished state
+                // Redirect to thank_you.html unless called from auto-stop
+                if (!isAutoStopCall) {
+                    window.location.href = 'thank_you.html';
+                }
 
             } catch (error) {
                 console.error('Errore nella terminazione della sessione:', error);
-                showError(`Impossibile terminare la sessione: ${error.message}. Controlla la connessione e la configurazione dello script.`);
+                showError('Impossibile terminare la sessione. Controlla la connessione.');
                 // If stop fails, update the finished screen with an error message
                 finalTimeDisplay.textContent = 'Errore nel calcolo del tempo.';
-                emailConfirmation.textContent = `Si è verificato un errore durante la terminazione della sessione: ${error.message}. Riprova.`;
+                emailConfirmation.textContent = 'Si è verificato un errore durante la terminazione della sessione. Riprova.';
                 emailConfirmation.classList.remove('hidden');
             }
         }
